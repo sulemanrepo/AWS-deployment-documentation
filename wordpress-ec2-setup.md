@@ -1,15 +1,40 @@
 Deploy WordPress on EC2 (Ubuntu) with Domain & Let’s Encrypt SSL
 
-This documentation explains the complete process of deploying WordPress on an Ubuntu EC2 instance, configuring LAMP stack, setting up the WordPress database, attaching a domain, and issuing a free Let’s Encrypt SSL certificate.
+This guide explains how to deploy WordPress on an Ubuntu EC2 instance, configure the LAMP stack, set up a database, attach a domain, and enable SSL using Let’s Encrypt.
+
+📌 Table of Contents
+
+Launch EC2 Instance
+
+Connect to EC2
+
+Install LAMP Stack
+
+Install & Configure WordPress
+
+Configure MySQL for WordPress
+
+Configure wp-config.php
+
+Fix Error Establishing DB Connection
+
+Attach Domain to EC2
+
+Install Let’s Encrypt SSL
+
+Access WordPress
+
+Final Notes
 
 1. Launch EC2 Instance
-Step 1 – Create EC2 Instance
 
-Choose AMI: Ubuntu Server 22.04 LTS
+Use the following configuration:
+
+AMI: Ubuntu Server 22.04 LTS
 
 Instance type: t2.micro (Free-tier eligible)
 
-Configure security group and allow:
+Security Group: Allow
 
 HTTP (80)
 
@@ -17,13 +42,13 @@ HTTPS (443)
 
 SSH (22)
 
-Create a new key pair and download it.
+Key Pair: Create a new one and download it
 
-Launch the instance.
+Launch the instance
 
-2. Connect to EC2 Instance
+2. Connect to EC2
 
-Open your terminal and connect:
+Use SSH to access your instance:
 
 ssh -i "Downloads/task1Key.pem" ubuntu@<EC2-Public-IP>
 
@@ -32,77 +57,63 @@ Example:
 
 ssh -i "Downloads/task1Key.pem" ubuntu@35.181.48.139
 
-3. Install LAMP Stack (Linux, Apache, MySQL, PHP)
-Step 3.1 – Update packages
+3. Install LAMP Stack
+✔ Update Packages
 sudo apt update
 
-Step 3.2 – Install Apache
+✔ Install Apache
 sudo apt install apache2 -y
 
-Step 3.3 – Install MySQL
+✔ Install MySQL
 sudo apt install mysql-server -y
 sudo mysql_secure_installation
 
-Step 3.4 – Install PHP
+✔ Install PHP
 sudo apt install php libapache2-mod-php php-mysql php-cli php-curl php-json php-cgi php-xml php-mbstring -y
 
 4. Install & Configure WordPress
-Step 4.1 – Download WordPress
+Download WordPress
 cd /tmp
 wget https://wordpress.org/latest.tar.gz
 tar -xzf latest.tar.gz
 
-Step 4.2 – Move WordPress files
+Move Files
 sudo mv wordpress /var/www/html/
 sudo chown -R www-data:www-data /var/www/html/wordpress
 sudo chmod -R 755 /var/www/html/wordpress
 
-5. Configure MySQL Database for WordPress
-Step 5.1 – Log into MySQL
+5. Configure MySQL for WordPress
+Login to MySQL:
 sudo mysql -u root -p
 
-
-Enter your password.
-
-Step 5.2 – Create Database & User
+Create Database & User:
 CREATE DATABASE wordpress;
 CREATE USER 'wordpressuser'@'localhost' IDENTIFIED BY 'password123';
 GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpressuser'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;
 
-6. Configure WordPress wp-config.php
+6. Configure wp-config.php
 cd /var/www/html/wordpress
 sudo cp wp-config-sample.php wp-config.php
 sudo nano wp-config.php
 
 
-Update these lines:
+Update:
 
 define( 'DB_NAME', 'wordpress' );
 define( 'DB_USER', 'wordpressuser' );
 define( 'DB_PASSWORD', 'password123' );
 define( 'DB_HOST', 'localhost' );
 
-
-Save and exit.
-
 7. Fix: Error Establishing a Database Connection
-
-If you see the error: “Error establishing a database connection”, verify:
-
-7.1 Check database configuration
+✔ Verify Config File
 sudo nano /var/www/html/wordpress/wp-config.php
 
+✔ Check Database
 
-Ensure correct:
+Inside MySQL:
 
-DB_NAME = wordpress
-DB_USER = wordpressuser
-DB_PASSWORD = password123
-DB_HOST = localhost
-
-7.2 Verify database exists
 SHOW DATABASES;
 
 
@@ -110,7 +121,7 @@ If missing:
 
 CREATE DATABASE wordpress;
 
-7.3 Verify MySQL user & permissions
+✔ Verify User
 SELECT user, host FROM mysql.user;
 
 
@@ -120,10 +131,7 @@ CREATE USER 'wordpressuser'@'localhost' IDENTIFIED BY 'password123';
 GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpressuser'@'localhost';
 FLUSH PRIVILEGES;
 
-7.4 Test database connectivity
-
-Create test file:
-
+✔ Test DB Connectivity
 sudo nano /var/www/html/wordpress/testdb.php
 
 
@@ -144,93 +152,65 @@ echo "Connected successfully";
 ?>
 
 
-Open:
+Test in browser:
 
 http://<EC2-IP>/wordpress/testdb.php
 
 
-If successful, delete the file:
+Delete after testing:
 
 sudo rm /var/www/html/wordpress/testdb.php
 
-7.5 Restart Services
+✔ Restart Services
 sudo systemctl restart apache2
 sudo systemctl restart mysql
 sudo tail -f /var/log/mysql/error.log
 
-8. Attach Domain to EC2 Instance
-Step 8.1 – Go to your Domain Provider (GoDaddy, Namecheap, WordPress.com, etc.)
+8. Attach Domain to EC2
 
-Add DNS records:
+Go to your domain registrar → Add DNS:
 
 A Record
+Host	Value	TTL
+@	EC2 Public IP	300
+www	EC2 Public IP	300
 
-Host: @
+Propagation: 5–30 minutes
 
-Value: <EC2-Public-IP>
-
-TTL: 300
-
-Optional:
-
-www → same IP
-
-Propagation may take 5–30 minutes.
-
-9. Install Let’s Encrypt SSL (HTTPS)
-Step 9.1 Install Certbot
+9. Install Let’s Encrypt SSL
+Install Certbot
 sudo apt update
 sudo apt install certbot python3-certbot-apache -y
 
-Step 9.2 Generate SSL Certificate
+Generate SSL
 sudo certbot --apache
 
-
-Follow instructions:
-
-Enter domain name
-
-Agree to terms
-
-Redirect HTTP → HTTPS (recommended)
-
-Certbot will automatically:
-✔ Configure HTTPS
-✔ Update Apache configuration
-✔ Install certificates
-
-Step 9.3 Verify Auto-Renewal
+Test Auto-Renew
 sudo certbot renew --dry-run
 
 10. Access Your WordPress Site
-WordPress Installation URL:
+
+Default:
+
 http://<your-domain>/wordpress
 
 
-or if moved to root:
+If moved to root:
 
 http://<your-domain>
 
 
-Complete the on-screen setup:
-
-Site Name
-
-Admin Username
-
-Admin Password
-
-Email
+Complete setup wizard.
 
 11. Final Notes
 
-Keep your system updated:
+Keep server updated:
 
 sudo apt update && sudo apt upgrade -y
 
 
 Backup wp-config.php
 
-Consider moving WordPress to /var/www/html/ root
+Consider moving WordPress to root /var/www/html/
 
-Use CloudFront or WAF for production
+Use CloudFront / WAF for production deployments
