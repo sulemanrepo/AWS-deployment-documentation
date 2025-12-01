@@ -1,5 +1,5 @@
-![Screenshot](./images/image 1.png)
-![Screenshot](./images/image 2.png)
+![Screenshot 1](./images/image%201.png)
+![Screenshot 2](./images/image%202.png)
 
 
 # Deploy Node.js & PHP Applications on AWS Elastic Beanstalk
