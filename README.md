@@ -4,7 +4,7 @@ This repository contains a complete collection of hands-on AWS and DevOps projec
 ---
 
 ## 👨‍💻 About Me  
-I am a DevOps & Cloud Engineer with **2+ years of hands-on AWS experience**, working with modern cloud-native environments, CI/CD pipelines, automation tools, and scalable application deployments.
+I am a DevOps & Cloud Engineer with **1+ years of hands-on AWS experience**, working with modern cloud-native environments, CI/CD pipelines, automation tools, and scalable application deployments.
 
 ### 🧩 Skills & Technologies  
 **Cloud Services:** EC2, Lightsail, ECS Fargate, ECR, Lambda, API Gateway, RDS, S3, Load Balancer, VPC, IAM, CloudWatch, Route53, CloudFront  
