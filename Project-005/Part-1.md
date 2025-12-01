@@ -1,102 +1,93 @@
-# CI/CD Pipeline for Python Application on AWS EC2 using CodePipeline & CodeDeploy
+# CI/CD Pipeline for Python Application using GitHub → CodePipeline → CodeDeploy → EC2
 
-> Complete step-by-step guide to deploying a Python application from GitHub to an EC2 instance using AWS CodePipeline, CodeDeploy, virtual environments, and a systemd service.
+> A complete, end-to-end guide to deploying a Python application from GitHub to an EC2 instance using CodePipeline, CodeDeploy, and a systemd service — including full workflow scripts and build steps.
 
 ---
 
 ## 📋 Table of Contents
 
+- [Overview](#overview)
+- [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
-- [Architecture Overview](#architecture-overview)
 - [Step 1: Create IAM Roles](#step-1-create-iam-roles)
 - [Step 2: Launch EC2 Instance](#step-2-launch-ec2-instance)
-- [Step 3: Install Python & Dependencies](#step-3-install-python--dependencies)
-- [Step 4: Clone Application from GitHub](#step-4-clone-application-from-github)
-- [Step 5: Create CodeDeploy Application, Deployment Group & Pipeline](#step-5-create-codedeploy-application-deployment-group--pipeline)
+- [Step 3: Install Python and Dependencies](#step-3-install-python-and-dependencies)
+- [Step 4: Clone Application and Setup Virtual Environment](#step-4-clone-application-and-setup-virtual-environment)
+- [Step 5: Configure CodeDeploy Application, Deployment Group & CodePipeline](#step-5-configure-codedeploy-application-deployment-group--codepipeline)
 - [Step 6: Create Systemd Service](#step-6-create-systemd-service)
-- [Step 7: Create appspec.yml & Hook Scripts](#step-7-create-appspecyml--hook-scripts)
+- [Step 7: Add appspec.yml and Script Files](#step-7-add-appspecyml-and-script-files)
 - [Step 8: Install CodeDeploy Agent](#step-8-install-codedeploy-agent)
+- [Folder Structure](#folder-structure)
+- [Complete Pipeline Scripts](#complete-pipeline-scripts)
 - [Verification](#verification)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
 
 ---
 
-## Prerequisites
+## Overview
 
-You must have the following:
+This guide will help you create a fully automated CI/CD pipeline that:
 
-- ✅ AWS account with IAM, EC2, CodeDeploy, and CodePipeline permissions  
-- ✅ GitHub repository with your Python application  
-- ✅ Ubuntu EC2 instance  
-- ✅ Basic Linux and Git knowledge  
+✔ Pulls code from GitHub  
+✔ Builds using CodePipeline  
+✔ Deploys using CodeDeploy  
+✔ Automatically restarts your Python app on EC2  
 
 ---
 
-## Architecture Overview
+## Architecture
 
 ```
-GitHub → CodePipeline → CodeDeploy → EC2 Instance → Python App Running on Port 5000
+GitHub → CodePipeline → CodeDeploy → EC2 Instance → systemd service → Python App
 ```
 
-**Components Used:**
+---
 
-- **GitHub** – stores your application code  
-- **AWS CodePipeline** – automates the deployment process  
-- **AWS CodeDeploy** – deploys files to EC2 instance  
-- **EC2 Instance** – runs the Python application  
-- **Systemd Service** – keeps app alive  
+## Prerequisites
+
+- AWS Account  
+- GitHub repository  
+- EC2 Ubuntu instance  
+- Basic Linux & Git knowledge  
+- Port **5000** open  
 
 ---
 
 ## Step 1: Create IAM Roles
 
-You need **two IAM roles**:
-
-### 1. AWS_CODE_DEPLOY_ROLE (Service Role)
-
-**Used by:** CodeDeploy  
+### Role 1 → CodeDeploy Service Role  
+**Name:** `AWS_CODE_DEPLOY_ROLE`  
 **Permissions:**  
 - AWSCodeDeployRole  
-- AmazonEC2FullAccess  
-- AmazonS3FullAccess  
 
-### 2. AMAZON_EC2_ROLE_FOR_CODE_DEPLOY (EC2 Instance Role)
+---
 
-**Used by:** EC2 instance  
-**Permissions:**
+### Role 2 → EC2 IAM Role  
+**Name:** `AMAZON_EC2_ROLE_FOR_CODE_DEPLOY`  
+**Permissions:**  
 - AmazonS3ReadOnlyAccess  
 - AWSCodeDeployFullAccess  
 
-Attach the EC2 role later when launching the EC2 instance.
+Attach this role to EC2.
 
 ---
 
 ## Step 2: Launch EC2 Instance
 
-### 2.1 Create Ubuntu EC2 Instance
+1. Create **Ubuntu 22.04** instance  
+2. Attach IAM role:  
+   → `AMAZON_EC2_ROLE_FOR_CODE_DEPLOY`
+3. Add **Security Group Rule**:
 
-1. Select **Ubuntu Server 22.04 LTS**
-2. Choose **t2.micro**
-3. Attach **IAM Role:** `AMAZON_EC2_ROLE_FOR_CODE_DEPLOY`
-4. Add Security Group rules:
-
-| Type | Protocol | Port | Source | Description |
-|------|----------|------|--------|-------------|
-| SSH | TCP | 22 | Your IP | Connect via SSH |
-| Custom TCP | TCP | 5000 | 0.0.0.0/0 | Application access |
-
-### 2.2 Connect to Instance
-
-```bash
-ssh -i "your-key.pem" ubuntu@<EC2-PUBLIC-IP>
-```
+| Type | Port | Source | Purpose |
+|------|------|--------|----------|
+| SSH | 22 | Your IP | Connect |
+| Custom TCP | 5000 | 0.0.0.0/0 | Python App Access |
 
 ---
 
-## Step 3: Install Python & Dependencies
-
-Update and install required packages:
+## Step 3: Install Python and Dependencies
 
 ```bash
 sudo apt update
@@ -106,31 +97,13 @@ sudo apt install -y python3 python3-pip python3-venv git
 
 ---
 
-## Step 4: Clone Application from GitHub
-
-Navigate to home directory:
+## Step 4: Clone Application and Setup Virtual Environment
 
 ```bash
 cd /home/ubuntu
-```
-
-Clone repository:
-
-```bash
 git clone https://github.com/hanzla6103/python-test.git
 cd python-test
-```
 
----
-
-### ⚠️ Important Note  
-A **virtual environment** is required because Ubuntu uses `apt` for Python packages and not `pip`.
-
----
-
-### Create Virtual Environment
-
-```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -138,36 +111,23 @@ pip install -r requirements.txt
 
 ---
 
-## Step 5: Create CodeDeploy Application, Deployment Group & Pipeline
+## Step 5: Configure CodeDeploy Application, Deployment Group & CodePipeline
 
 ### 5.1 Create CodeDeploy Application
-
-- **Name:** your choice  
-- **Compute Platform:** EC2 / On-premises  
+- Compute platform: **EC2**
 
 ### 5.2 Create Deployment Group
-
-- **Name:** your choice  
-- **Service Role:** `AWS_CODE_DEPLOY_ROLE`  
-- **Environment Configuration:** EC2 Instances  
-- **Load Balancer:** Disabled  
+- Service role: **AWS_CODE_DEPLOY_ROLE**
+- Environment: EC2 Instances
 
 ### 5.3 Create CodePipeline
-
-- **Name:** your choice  
-- **Source Provider:** GitHub (Version 2)  
-- **Connect Repository:** python-test  
-- **Branch:** main  
-- **Build:** **Skip**  
-- **Deploy:** CodeDeploy  
-- **App Name:** (previous step)  
-- **Deployment Group:** (previous step)  
+- Source: GitHub (v2)
+- Build: **Use buildspec.yml**
+- Deploy: CodeDeploy
 
 ---
 
 ## Step 6: Create Systemd Service
-
-Create a systemd file to keep the Python app alive:
 
 ```bash
 sudo nano /etc/systemd/system/myapp.service
@@ -191,7 +151,7 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-Reload & enable:
+Enable service:
 
 ```bash
 sudo systemctl daemon-reload
@@ -201,84 +161,19 @@ sudo systemctl start myapp.service
 
 ---
 
-## Step 7: Create appspec.yml & Hook Scripts
+## Step 7: Add appspec.yml and Script Files
 
-### 7.1 Create appspec.yml
+These files must exist **inside your GitHub repository**, not only on server.
 
-```bash
-sudo nano appspec.yml
+Place them in:
+
 ```
-
-Paste:
-
-```yaml
-version: 0.0
-os: linux
-files:
-  - source: /
-    destination: /home/ubuntu/python-test
-file_exists_behavior: OVERWRITE
-
-hooks:
-  BeforeInstall:
-    - location: /install-dependencies
-      runas: root
-
-  AfterInstall:
-    - location: /after-install
-      runas: root
-```
-
----
-
-### 7.2 Create install-dependencies Script
-
-```bash
-sudo nano install-dependencies
-```
-
-Paste:
-
-```bash
-#!/bin/bash
-sudo systemctl stop myapp.service
-```
-
----
-
-### 7.3 Create after-install Script
-
-```bash
-sudo nano after-install
-```
-
-Paste:
-
-```bash
-#!/bin/bash
-sudo systemctl restart myapp.service
-```
-
----
-
-### 7.4 Make Scripts Executable
-
-```bash
-chmod +x install-dependencies
-chmod +x after-install
+/python-test/
 ```
 
 ---
 
 ## Step 8: Install CodeDeploy Agent
-
-Check if agent exists:
-
-```bash
-sudo service codedeploy-agent status
-```
-
-Install:
 
 ```bash
 sudo apt update
@@ -288,87 +183,192 @@ cd /home/ubuntu
 wget https://aws-codedeploy-eu-west-3.s3.eu-west-3.amazonaws.com/latest/install
 chmod +x ./install
 sudo ./install auto
-```
 
-Start agent:
-
-```bash
 sudo service codedeploy-agent start
+sudo service codedeploy-agent status
 ```
 
 ---
 
-## Verification
+# Folder Structure
 
-### 1. Trigger pipeline
+```
+python-test/
+│
+├── app.py
+├── requirements.txt
+├── appspec.yml
+│
+├── scripts/
+│   ├── BeforeInstall.sh
+│   ├── AfterInstall.sh
+│   ├── ApplicationStart.sh
+│   └── validate-service.sh
+│
+└── buildspec.yml
+```
 
-Go to **AWS CodePipeline → Release Change**
+---
 
-### 2. If successful:
+# Complete Pipeline Scripts
 
-Visit:
+Below are **all required files** for CodePipeline + CodeDeploy.
+
+---
+
+## 1. `buildspec.yml`
+
+```yaml
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Installing Python dependencies"
+      - python3 -m venv venv
+      - source venv/bin/activate
+      - pip install -r requirements.txt
+
+artifacts:
+  files:
+    - '**/*'
+  name: python-test-artifact
+```
+
+---
+
+## 2. `appspec.yml`
+
+```yaml
+version: 0.0
+os: linux
+
+files:
+  - source: /
+    destination: /home/ubuntu/python-test
+file_exists_behavior: OVERWRITE
+
+hooks:
+  BeforeInstall:
+    - location: scripts/BeforeInstall.sh
+      runas: root
+  AfterInstall:
+    - location: scripts/AfterInstall.sh
+      runas: root
+  ApplicationStart:
+    - location: scripts/ApplicationStart.sh
+      runas: root
+  ValidateService:
+    - location: scripts/validate-service.sh
+      runas: root
+```
+
+---
+
+## 3. `scripts/BeforeInstall.sh`
+
+```bash
+#!/bin/bash
+echo "Stopping existing service..."
+sudo systemctl stop myapp.service || true
+```
+
+---
+
+## 4. `scripts/AfterInstall.sh`
+
+```bash
+#!/bin/bash
+echo "Installing dependencies..."
+cd /home/ubuntu/python-test
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+---
+
+## 5. `scripts/ApplicationStart.sh`
+
+```bash
+#!/bin/bash
+echo "Starting application service..."
+sudo systemctl start myapp.service
+```
+
+---
+
+## 6. `scripts/validate-service.sh`
+
+```bash
+#!/bin/bash
+echo "Validating service..."
+sudo systemctl status myapp.service || exit 1
+```
+
+---
+
+# Make Scripts Executable
+
+```bash
+chmod +x scripts/*.sh
+```
+
+---
+
+# Verification
+
+### Trigger Deployment
+
+Go to **CodePipeline → Release Change**
+
+### Visit App
 
 ```
 http://<EC2-PUBLIC-IP>:5000
 ```
 
-### 3. Commit new code to GitHub
-
-Pipeline should automatically deploy.
+### Commit new code  
+→ Pipeline should auto-deploy.
 
 ---
 
-## Troubleshooting
+# Troubleshooting
 
-### ❌ App not updating  
-✔ Ensure your GitHub repo contains updated `appspec.yml`, `install-dependencies`, `after-install`.
-
-### ❌ CodeDeploy errors  
-Use:
+### View CodeDeploy logs
 
 ```bash
 sudo tail -f /var/log/aws/codedeploy-agent/codedeploy-agent.log
 ```
 
-### ❌ App not running  
-Check service:
+### View lifecycle event logs
 
 ```bash
-sudo systemctl status myapp.service
+sudo tail -f /opt/codedeploy-agent/deployment-root/deployment-logs/codedeploy-agent-deployments.log
 ```
 
-### ❌ Scripts not running  
-Ensure execute permissions:
+### View systemd logs
 
 ```bash
-chmod +x install-dependencies after-install
+sudo journalctl -u myapp.service -f
 ```
 
 ---
 
-## Best Practices
+# Best Practices
 
-### 🔒 Security  
-- Restrict port 5000 access in production  
-- Use Nginx reverse proxy  
-- Enable HTTPS with Let's Encrypt  
-
-### ⚙️ DevOps  
-- Add **CodeBuild** for automated testing  
-- Separate dev/staging/prod pipelines  
-- Use S3 artifact storage  
-
-### 📦 Application  
-- Keep dependencies minimal  
-- Use `requirements.txt` properly  
-- Use virtual environment always  
+✔ Use `scripts/` folder for hooks  
+✔ Use `Nginx` reverse proxy for production  
+✔ Use `HTTPS`  
+✔ Add CloudWatch alarms  
+✔ Use separate dev/staging/prod pipelines  
 
 ---
 
-## 🎯 Final Notes
+# 🎉 Deployment Completed Successfully
 
-Your CI/CD pipeline is now fully automated.  
-Whenever you push code to **main**, CodePipeline → CodeDeploy will update the EC2 instance smoothly.
+Your pipeline is now fully automated from GitHub → EC2 using CodePipeline + CodeDeploy.  
+Every GitHub commit will trigger an automatic deployment.
 
 ---
 
