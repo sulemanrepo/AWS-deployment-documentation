@@ -1,4 +1,4 @@
-![Screenshot](./Project-002/Screenshot (17).png)
+![Screenshot](Project-002/Screenshot (17).png)
 
 
 
