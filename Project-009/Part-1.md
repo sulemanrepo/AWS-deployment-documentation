@@ -1,3 +1,5 @@
+![Screenshot 1](./images/Architecture.png) 
+
 # Deploy Serverless Image Conversion System Using AWS Lambda & S3
 
 > A complete guide to building an automated image conversion workflow using AWS Lambda and S3.  
