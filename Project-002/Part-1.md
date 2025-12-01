@@ -1,3 +1,7 @@
+![Screenshot](./Project-002/Screenshot%20(17).png)
+
+
+
 # WordPress Migration to AWS Lightsail using All-in-One WP Migration
 
 > This guide walks you through creating an AWS Lightsail WordPress instance and importing a WordPress backup using the All-in-One WP Migration plugin.
