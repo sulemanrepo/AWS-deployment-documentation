@@ -1,5 +1,4 @@
-![Screenshot](Project-002/Screenshot (17).png)
-
+![Project Overview](images/outcomes.png)
 
 
 # WordPress Migration to AWS Lightsail using All-in-One WP Migration
