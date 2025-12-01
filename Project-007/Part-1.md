@@ -1,3 +1,7 @@
+![Screenshot](./images/image 1.png)
+![Screenshot](./images/image 2.png)
+
+
 # Deploy Node.js & PHP Applications on AWS Elastic Beanstalk
 
 > A complete step-by-step guide to deploying **Node.js** and **PHP** applications to **AWS Elastic Beanstalk**, including app creation, packaging, systemd services, and environment setup.
